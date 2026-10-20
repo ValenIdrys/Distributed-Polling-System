@@ -1,0 +1,100 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Distributed Polling System</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="container">
+    <header>
+        <h1>Distributed Polling System</h1>
+        <p>Real-time classroom polling</p>
+    </header>
+
+    <section class="status-card">
+        <h2>Connection</h2>
+        <p id="connectionStatus">Connecting...</p>
+        <p id="serverInfo">Waiting for server...</p>
+    </section>
+
+    <section class="card" id="loginSection">
+        <h2>Join the System</h2>
+        <form id="loginForm">
+            <label for="username">Username</label>
+            <input id="username" maxlength="30" required>
+
+            <label for="role">Role</label>
+            <select id="role">
+                <option value="student">Student</option>
+                <option value="lecturer">Lecturer</option>
+            </select>
+
+            <label for="password">Password</label>
+            <input id="password" type="password" required>
+
+            <button type="submit">Log In</button>
+            <p id="loginMessage" role="status"></p>
+        </form>
+        <p class="hint">Demo passwords: student123 / lecturer123</p>
+    </section>
+
+    <section class="card hidden" id="dashboard">
+        <h2>Welcome, <span id="displayUsername"></span>!</h2>
+        <p>Role: <strong id="displayRole"></strong></p>
+        <p id="dashboardServer"></p>
+        <button id="logoutButton" class="secondary">Log Out</button>
+    </section>
+
+    <section class="card hidden" id="lecturerPanel">
+        <h2>Create a Poll</h2>
+        <form id="pollForm">
+            <label for="question">Poll question</label>
+            <input id="question" maxlength="200" required>
+
+            <label for="option1">Option 1</label>
+            <input id="option1" maxlength="100" required>
+
+            <label for="option2">Option 2</label>
+            <input id="option2" maxlength="100" required>
+
+            <label for="option3">Option 3 (optional)</label>
+            <input id="option3" maxlength="100">
+
+            <label for="option4">Option 4 (optional)</label>
+            <input id="option4" maxlength="100">
+
+            <button id="launchButton" type="submit">Launch Poll</button>
+        </form>
+        <button id="closePollButton" class="secondary hidden">
+            Close Current Poll
+        </button>
+    </section>
+
+    <section class="card hidden" id="pollPanel">
+        <h2 id="pollQuestion">Poll</h2>
+        <p id="pollStatus"></p>
+        <div id="votingOptions"></div>
+        <p id="voteMessage" role="status"></p>
+
+        <h3>Live Results</h3>
+        <div id="results"></div>
+
+        <h3>Submitted Votes</h3>
+        <ul id="voteList"></ul>
+    </section>
+
+    <section class="card">
+        <h2>Connected Users</h2>
+        <p id="userCount">0 users connected</p>
+        <ul id="userList">
+            <li>Waiting for users...</li>
+        </ul>
+    </section>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
