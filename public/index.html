@@ -20,26 +20,46 @@
         <p id="serverInfo">Waiting for server...</p>
     </section>
 
+    
     <section class="card" id="loginSection">
         <h2>Join the System</h2>
+
         <form id="loginForm">
-            <label for="username">Username</label>
-            <input id="username" maxlength="30" required>
+            <label for="username">Your name</label>
+            <input
+                id="username"
+                maxlength="30"
+                placeholder="Enter your name"
+                autocomplete="username"
+                required
+            >
 
-            <label for="role">Role</label>
-            <select id="role">
-                <option value="student">Student</option>
-                <option value="lecturer">Lecturer</option>
-            </select>
+            <div id="roleContainer">
+                <label for="role">Join as</label>
+                <select id="role">
+                    <option value="student">Student</option>
+                    <option value="lecturer">Lecturer</option>
+                </select>
+            </div>
 
-            <label for="password">Password</label>
-            <input id="password" type="password" required>
+            <div id="passwordContainer" class="hidden">
+                <label for="password">Lecturer password</label>
+                <input
+                    id="password"
+                    type="password"
+                    autocomplete="current-password"
+                >
+            </div>
 
-            <button type="submit">Log In</button>
+            <button type="submit" id="loginButton">Join as Student</button>
             <p id="loginMessage" role="status"></p>
         </form>
-        <p class="hint">Demo passwords: student123 / lecturer123</p>
+
+        <p class="hint">
+            Students can join using their names. Lecturers need a password.
+        </p>
     </section>
+
 
     <section class="card hidden" id="dashboard">
         <h2>Welcome, <span id="displayUsername"></span>!</h2>

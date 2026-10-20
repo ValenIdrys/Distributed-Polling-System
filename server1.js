@@ -140,10 +140,10 @@ wss.on("connection", socket => {
                 return;
             }
 
-            if (password !== PASSWORDS[role]) {
-                reject(socket, "Incorrect password for this role.");
-                return;
-            }
+            if (role === "lecturer" && password !== PASSWORDS.lecturer) {
+    reject(socket, "Incorrect lecturer password.");
+    return;
+}
 
             const duplicate = getUsers().some(
                 user => user.username.toLowerCase() === username.toLowerCase()

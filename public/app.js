@@ -5,6 +5,28 @@ const connectionStatus = $("connectionStatus");
 const serverInfo = $("serverInfo");
 const loginForm = $("loginForm");
 const loginMessage = $("loginMessage");
+const roleSelect = $("role");
+const passwordInput = $("password");
+const passwordContainer = $("passwordContainer");
+const loginButton = $("loginButton");
+
+function updateLoginForm() {
+    const isLecturer = roleSelect.value === "lecturer";
+
+    passwordContainer.classList.toggle("hidden", !isLecturer);
+    passwordInput.required = isLecturer;
+
+    if (!isLecturer) {
+        passwordInput.value = "";
+    }
+
+    loginButton.textContent = isLecturer
+        ? "Log In as Lecturer"
+        : "Join as Student";
+}
+
+roleSelect.addEventListener("change", updateLoginForm);
+updateLoginForm();
 const loginSection = $("loginSection");
 const dashboard = $("dashboard");
 const lecturerPanel = $("lecturerPanel");
@@ -44,14 +66,29 @@ socket.addEventListener("error", () => {
 loginForm.addEventListener("submit", event => {
     event.preventDefault();
 
+    const role = roleSelect.value;
+    const username = $("username").value.trim();
+
+    if (!username) {
+        loginMessage.textContent = "Please enter your name.";
+        return;
+    }
+
+    if (role === "lecturer" && !passwordInput.value) {
+        loginMessage.textContent = "Please enter the lecturer password.";
+        return;
+    }
+
     send({
         type: "login",
-        username: $("username").value,
-        role: $("role").value,
-        password: $("password").value
+        username,
+        role,
+        password: role === "lecturer" ? passwordInput.value : ""
     });
 
-    loginMessage.textContent = "Checking credentials...";
+    loginMessage.textContent = role === "lecturer"
+        ? "Checking lecturer credentials..."
+        : "Joining the polling system...";
 });
 
 $("logoutButton").addEventListener("click", () => {
