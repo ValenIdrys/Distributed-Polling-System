@@ -384,6 +384,14 @@ async function startServer() {
 
         console.log("Redis connection successful.");
 
+                await store.subscribePollUpdates(async message => {
+            if (message === "pollUpdate") {
+                await broadcastPoll();
+            }
+        });
+
+        console.log("Subscribed to Redis poll updates.");
+
         server.listen(PORT, () => {
             console.log(`Server 1 is running at http://localhost:${PORT}`);
             console.log(`WebSocket server is listening on port ${PORT}`);
