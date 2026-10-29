@@ -5,6 +5,12 @@ const redis = createClient({
     url: process.env.REDIS_URL || "redis://127.0.0.1:6379"
 });
 
+const subscriber = redis.duplicate();
+
+subscriber.on("error", error => {
+    console.error("Redis subscriber error:", error.message);
+});
+
 redis.on("error", error => {
     console.error("Redis error:", error.message);
 });
@@ -215,6 +221,16 @@ async function recordVote(pollId, username, optionIndex) {
     };
 }
 
+async function subscribePollUpdates(callback) {
+    if (!subscriber.isOpen) {
+        await subscriber.connect();
+    }
+
+    await subscriber.subscribe(POLL_EVENTS_CHANNEL, message => {
+        callback(message);
+    });
+}
+
 async function publishPollUpdate() {
     await redis.publish(POLL_EVENTS_CHANNEL, "pollUpdate");
 }
@@ -230,5 +246,6 @@ module.exports = {
     closePollAtomic,
     recordVote,
     publishPollUpdate,
+    subscribePollUpdates,
     POLL_EVENTS_CHANNEL
 };
