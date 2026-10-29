@@ -56,6 +56,95 @@ async function nextPollId() {
 }
 
 
+async function createPollAtomic(question, options) {
+    const pollId = await nextPollId();
+
+    const poll = {
+        id: pollId,
+        question,
+        options,
+        status: "open",
+        votes: []
+    };
+
+    const script = `
+        if redis.call("GET", KEYS[1]) then
+            return {0, "POLL_ALREADY_ACTIVE"}
+        end
+
+        redis.call("SET", KEYS[1], ARGV[1])
+        redis.call("SET", KEYS[2], ARGV[2])
+
+        return {1, "OK"}
+    `;
+
+    const result = await redis.eval(script, {
+        keys: [
+            POLL_ACTIVE_KEY,
+            POLL_LATEST_KEY
+        ],
+        arguments: [
+            String(pollId),
+            JSON.stringify(poll)
+        ]
+    });
+
+    if (Number(result[0]) !== 1) {
+        return {
+            success: false,
+            reason: result[1]
+        };
+    }
+
+    return {
+        success: true,
+        poll
+    };
+}
+
+async function closePollAtomic(pollId) {
+    const script = `
+        local raw = redis.call("GET", KEYS[1])
+
+        if not raw then
+            return {0, "NO_POLL"}
+        end
+
+        local poll = cjson.decode(raw)
+
+        if tostring(poll.id) ~= ARGV[1] then
+            return {0, "POLL_CHANGED"}
+        end
+
+        local activePollId = redis.call("GET", KEYS[2])
+
+        if not activePollId or activePollId ~= ARGV[1] then
+            return {0, "POLL_NOT_ACTIVE"}
+        end
+
+        poll.status = "closed"
+
+        redis.call("SET", KEYS[1], cjson.encode(poll))
+        redis.call("DEL", KEYS[2])
+
+        return {1, "OK"}
+    `;
+
+    const result = await redis.eval(script, {
+        keys: [
+            POLL_LATEST_KEY,
+            POLL_ACTIVE_KEY
+        ],
+        arguments: [String(pollId)]
+    });
+
+    return {
+        success: Number(result[0]) === 1,
+        reason: result[1]
+    };
+}
+
+
 async function recordVote(pollId, username, optionIndex) {
     const script = `
         local raw = redis.call("GET", KEYS[1])
@@ -137,6 +226,8 @@ module.exports = {
     getActivePoll,
     savePoll,
     nextPollId,
+    createPollAtomic,
+    closePollAtomic,
     recordVote,
     publishPollUpdate,
     POLL_EVENTS_CHANNEL
