@@ -2,6 +2,7 @@
 const express = require("express");
 const http = require("http");
 const WebSocket = require("ws");
+const store = require("./redis-store");
 
 const app = express();
 const server = http.createServer(app);
@@ -16,9 +17,6 @@ const PASSWORDS = {
 
 const users = new Map();
 
-let pollCounter = 0;
-let activePoll = null;
-let latestPoll = null;
 
 app.use(express.static("public"));
 
@@ -71,11 +69,17 @@ function getPollState(poll) {
     };
 }
 
-function broadcastPoll() {
-    broadcast({
-        type: "pollUpdate",
-        poll: getPollState(activePoll || latestPoll)
-    });
+async function broadcastPoll() {
+    try {
+        const poll = await store.getLatestPoll();
+
+        broadcast({
+            type: "pollUpdate",
+            poll: getPollState(poll)
+        });
+    } catch (error) {
+        console.error("Failed to broadcast poll:", error.message);
+    }
 }
 
 function reject(socket, message) {
@@ -101,12 +105,18 @@ wss.on("connection", socket => {
         users: getUsers()
     });
 
-    sendMessage(socket, {
-        type: "pollUpdate",
-        poll: getPollState(activePoll || latestPoll)
+    store.getLatestPoll()
+    .then(poll => {
+        sendMessage(socket, {
+            type: "pollUpdate",
+            poll: getPollState(poll)
+        });
+    })
+    .catch(error => {
+        console.error("Failed to load poll for new client:", error.message);
     });
 
-    socket.on("message", rawData => {
+    socket.on("message", async rawData => {
         let data;
 
         try {
@@ -186,10 +196,6 @@ wss.on("connection", socket => {
                 return;
             }
 
-            if (activePoll) {
-                reject(socket, "Close the current poll before creating another.");
-                return;
-            }
 
             const question =
                 typeof data.question === "string"
@@ -221,30 +227,43 @@ wss.on("connection", socket => {
                 return;
             }
 
-            pollCounter++;
+            
+            try {
+                const result = await store.createPollAtomic(question, options);
 
-            activePoll = {
-                id: pollCounter,
-                question,
-                options,
-                status: "open",
-                votes: []
-            };
+                if (!result.success) {
+                    reject(
+                        socket,
+                        result.reason === "POLL_ALREADY_ACTIVE"
+                            ? "Close the current poll before creating another."
+                            : "Failed to create the poll."
+                    );
+                    return;
+                }
 
-            latestPoll = activePoll;
+    console.log(`Poll ${result.poll.id} launched: ${question}`);
 
-            console.log(`Poll ${pollCounter} launched: ${question}`);
-            broadcastPoll();
-            return;
+    await store.publishPollUpdate();
+    await broadcastPoll();
+    return;
+} catch (error) {
+    console.error("Failed to create poll:", error.message);
+    reject(socket, "Failed to create the poll. Please try again.");
+    return;
+}
+
         }
 
+       
         if (data.type === "vote") {
             if (user.role !== "student") {
                 reject(socket, "Only students can vote.");
                 return;
             }
 
-            if (!activePoll || activePoll.status !== "open") {
+            const poll = await store.getActivePoll();
+
+            if (!poll) {
                 reject(socket, "There is no open poll.");
                 return;
             }
@@ -254,59 +273,92 @@ wss.on("connection", socket => {
             if (
                 !Number.isInteger(optionIndex) ||
                 optionIndex < 0 ||
-                optionIndex >= activePoll.options.length
+                optionIndex >= poll.options.length
             ) {
                 reject(socket, "Select a valid answer.");
                 return;
             }
 
-            const alreadyVoted = activePoll.votes.some(
-                vote => vote.username.toLowerCase() ===
-                    user.username.toLowerCase()
-            );
+            try {
+                const result = await store.recordVote(
+                    poll.id,
+                    user.username,
+                    optionIndex
+                );
 
-            if (alreadyVoted) {
-                reject(socket, "You have already voted in this poll.");
+                if (!result.success) {
+                    const messages = {
+                        ALREADY_VOTED: "You have already voted in this poll.",
+                        POLL_CLOSED: "This poll is closed.",
+                        POLL_CHANGED: "The poll has changed. Please refresh.",
+                        NO_POLL: "There is no available poll.",
+                        INVALID_OPTION: "Select a valid answer."
+                    };
+
+                    reject(
+                        socket,
+                        messages[result.reason] || "Failed to submit your vote."
+                    );
+                    return;
+                }
+
+                sendMessage(socket, {
+                    type: "voteConfirmation",
+                    message: "Your vote has been submitted."
+                });
+
+                console.log(`${user.username} submitted a vote.`);
+
+                await store.publishPollUpdate();
+                await broadcastPoll();
+                return;
+            } catch (error) {
+                console.error("Failed to record vote:", error.message);
+                reject(socket, "Failed to submit your vote. Please try again.");
                 return;
             }
-
-            activePoll.votes.push({
-                username: user.username,
-                optionIndex,
-                timestamp: new Date().toISOString()
-            });
-
-            latestPoll = activePoll;
-
-            sendMessage(socket, {
-                type: "voteConfirmation",
-                message: "Your vote has been submitted."
-            });
-
-            console.log(`${user.username} submitted a vote.`);
-            broadcastPoll();
-            return;
         }
 
+
+        
         if (data.type === "closePoll") {
             if (user.role !== "lecturer") {
                 reject(socket, "Only lecturers can close polls.");
                 return;
             }
 
-            if (!activePoll) {
-                reject(socket, "There is no open poll to close.");
+            try {
+                const poll = await store.getActivePoll();
+
+                if (!poll) {
+                    reject(socket, "There is no open poll to close.");
+                    return;
+                }
+
+                const result = await store.closePollAtomic(poll.id);
+
+                if (!result.success) {
+                    reject(
+                        socket,
+                        result.reason === "POLL_NOT_ACTIVE"
+                            ? "There is no open poll to close."
+                            : "Failed to close the poll. Please try again."
+                    );
+                    return;
+                }
+
+                console.log(`Poll ${poll.id} closed.`);
+
+                await store.publishPollUpdate();
+                await broadcastPoll();
+                return;
+            } catch (error) {
+                console.error("Failed to close poll:", error.message);
+                reject(socket, "Failed to close the poll. Please try again.");
                 return;
             }
-
-            activePoll.status = "closed";
-            latestPoll = activePoll;
-            activePoll = null;
-
-            console.log(`Poll ${latestPoll.id} closed.`);
-            broadcastPoll();
-            return;
         }
+
 
         reject(socket, "Unknown request type.");
     });
@@ -325,7 +377,22 @@ wss.on("connection", socket => {
     });
 });
 
-server.listen(PORT, () => {
-    console.log(`Server 1 is running at http://localhost:${PORT}`);
-    console.log(`WebSocket server is listening on port ${PORT}`);
-});
+
+async function startServer() {
+    try {
+        await store.connectRedis();
+
+        console.log("Redis connection successful.");
+
+        server.listen(PORT, () => {
+            console.log(`Server 1 is running at http://localhost:${PORT}`);
+            console.log(`WebSocket server is listening on port ${PORT}`);
+        });
+    } catch (error) {
+        console.error("Failed to start Server 1:", error.message);
+        process.exitCode = 1;
+    }
+}
+
+startServer();
+
