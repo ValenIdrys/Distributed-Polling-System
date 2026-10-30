@@ -450,7 +450,13 @@ async function startServer() {
 
     console.log("Subscribed to Redis user updates.");
 
-        console.log("Subscribed to Redis poll updates.");
+        setInterval(async () => {
+        try {
+            await store.cleanupExpiredSessions();
+        } catch (error) {
+            console.error("Session cleanup failed:", error.message);
+        }
+    }, 10000);
 
         server.listen(PORT, () => {
             console.log(`Server 1 is running at http://localhost:${PORT}`);
