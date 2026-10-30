@@ -59,25 +59,30 @@ async function runTest() {
             throw new Error("Could not retrieve registered user.");
         }
 
-        console.log("\n5. Testing expired-session cleanup...");
+                console.log("\n5. Testing session recovery on another server...");
 
-        await store.redis.zAdd("users:expiry", [{
-            score: Date.now() - 1000,
-            value: sessionId
-        }]);
-
-        const remainingUsers = await store.getConnectedUsers();
-        const stillExists = remainingUsers.some(
-            u => u.username === user.username
+        const resumed = await store.resumeUserSession(
+            sessionId,
+            "Server 2",
+            3001
         );
 
-        console.log("Expired user still exists:", stillExists);
+        console.log("Session resumed:", resumed);
 
-        if (stillExists) {
-            throw new Error("Expired session was not removed.");
+        if (!resumed.success) {
+            throw new Error("Session recovery failed.");
         }
 
-        console.log("\n6. Testing session removal...");
+        if (
+            resumed.user.server !== "Server 2" ||
+            resumed.user.port !== 3001
+        ) {
+            throw new Error("Session server information was not updated.");
+        }
+
+        console.log("Updated user:", resumed.user);
+
+                console.log("\n6. Testing session removal...");
 
         const removed = await store.removeUserSession(
             sessionId,
@@ -85,6 +90,47 @@ async function runTest() {
         );
 
         console.log("Session removed:", removed);
+
+        if (!removed) {
+            throw new Error("Session removal failed.");
+        }
+
+        console.log("\n7. Testing expired-session cleanup...");
+
+        const expirySessionId = "test-session-expiry-001";
+
+        const expiryUser = {
+            username: "ExpiryTestUser",
+            role: "student",
+            server: "Test Server",
+            port: 3000
+        };
+
+        const expiryRegistration = await store.registerUserSession(
+            expirySessionId,
+            expiryUser
+        );
+
+        if (!expiryRegistration.success) {
+            throw new Error("Expiry test session registration failed.");
+        }
+
+        await store.redis.zAdd("users:expiry", [{
+            score: Date.now() - 1000,
+            value: expirySessionId
+        }]);
+
+        const remainingUsers = await store.getConnectedUsers();
+
+        const stillExists = remainingUsers.some(
+            u => u.username === expiryUser.username
+        );
+
+        console.log("Expired user still exists:", stillExists);
+
+        if (stillExists) {
+            throw new Error("Expired session was not removed.");
+        }
 
         console.log("\nALL SESSION TESTS PASSED!");
 

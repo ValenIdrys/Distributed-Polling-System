@@ -301,6 +301,68 @@ async function refreshUserSession(sessionId) {
     })) === 1;
 }
 
+async function resumeUserSession(sessionId, server, port) {
+    const script = `
+        local raw = redis.call("HGET", KEYS[1], ARGV[1])
+
+        if not raw then
+            return {0, "SESSION_NOT_FOUND"}
+        end
+
+        local expiry = redis.call("ZSCORE", KEYS[3], ARGV[1])
+
+        if not expiry or tonumber(expiry) <= tonumber(ARGV[2]) then
+            return {0, "SESSION_EXPIRED"}
+        end
+
+        local user = cjson.decode(raw)
+
+        local username = string.lower(user.username)
+        local currentSession = redis.call("HGET", KEYS[2], username)
+
+        if currentSession ~= ARGV[1] then
+            return {0, "SESSION_INVALID"}
+        end
+
+        user.server = ARGV[3]
+        user.port = tonumber(ARGV[4])
+
+        redis.call("HSET", KEYS[1], ARGV[1], cjson.encode(user))
+        redis.call("ZADD", KEYS[3], ARGV[2] + ARGV[5], ARGV[1])
+
+        return {1, cjson.encode(user)}
+    `;
+
+    const result = await redis.eval(script, {
+        keys: [
+            USER_SESSIONS_KEY,
+            USERNAMES_KEY,
+            USER_SESSIONS_EXPIRY_KEY
+        ],
+        arguments: [
+            sessionId,
+            String(Date.now()),
+            server,
+            String(port),
+            String(SESSION_TIMEOUT)
+        ]
+    });
+
+    if (Number(result[0]) !== 1) {
+        return {
+            success: false,
+            reason: result[1]
+        };
+    }
+
+    await publishUserUpdate();
+
+    return {
+        success: true,
+        user: JSON.parse(result[1])
+    };
+}
+
 async function removeUserSession(sessionId, username) {
     const script = `
         local currentSession = redis.call("HGET", KEYS[2], string.lower(ARGV[2]))
@@ -435,6 +497,7 @@ module.exports = {
     subscribePollUpdates,
     registerUserSession,
     refreshUserSession,
+    resumeUserSession,
     removeUserSession,
     cleanupExpiredSessions,
     getConnectedUsers,
