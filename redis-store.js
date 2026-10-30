@@ -19,6 +19,12 @@ const POLL_LATEST_KEY = "poll:latest";
 const POLL_ACTIVE_KEY = "poll:active";
 const POLL_COUNTER_KEY = "poll:counter";
 const POLL_EVENTS_CHANNEL = "poll:events";
+const USER_SESSIONS_KEY = "users:sessions";
+const USERNAMES_KEY = "users:usernames";
+const USER_SESSIONS_EXPIRY_KEY = "users:expiry";
+const USER_EVENTS_CHANNEL = "users:events";
+
+const SESSION_TIMEOUT = 60 * 1000;
 
 async function connectRedis() {
     if (!redis.isOpen) {
@@ -221,6 +227,186 @@ async function recordVote(pollId, username, optionIndex) {
     };
 }
 
+async function registerUserSession(sessionId, user) {
+    const script = `
+        local username = string.lower(ARGV[1])
+        local existingSession = redis.call("HGET", KEYS[2], username)
+
+        if existingSession then
+            local expiry = redis.call("ZSCORE", KEYS[3], existingSession)
+
+            if expiry and tonumber(expiry) > tonumber(ARGV[4]) then
+                return {0, "USERNAME_TAKEN"}
+            end
+
+            redis.call("HDEL", KEYS[1], existingSession)
+            redis.call("ZREM", KEYS[3], existingSession)
+            redis.call("HDEL", KEYS[2], username)
+        end
+
+        redis.call("HSET", KEYS[1], ARGV[2], ARGV[3])
+        redis.call("HSET", KEYS[2], username, ARGV[2])
+        redis.call("ZADD", KEYS[3], ARGV[4] + ARGV[5], ARGV[2])
+
+        return {1, "OK"}
+    `;
+
+    const now = Date.now();
+
+    const result = await redis.eval(script, {
+        keys: [
+            USER_SESSIONS_KEY,
+            USERNAMES_KEY,
+            USER_SESSIONS_EXPIRY_KEY
+        ],
+        arguments: [
+            user.username,
+            sessionId,
+            JSON.stringify(user),
+            String(now),
+            String(SESSION_TIMEOUT)
+        ]
+    });
+
+    if (Number(result[0]) === 1) {
+        await publishUserUpdate();
+    }
+
+    return {
+        success: Number(result[0]) === 1,
+        reason: result[1]
+    };
+}
+
+async function refreshUserSession(sessionId) {
+    const script = `
+        if redis.call("HEXISTS", KEYS[1], ARGV[1]) == 0 then
+            return 0
+        end
+
+        redis.call("ZADD", KEYS[2], ARGV[2] + ARGV[3], ARGV[1])
+        return 1
+    `;
+
+    return Number(await redis.eval(script, {
+        keys: [
+            USER_SESSIONS_KEY,
+            USER_SESSIONS_EXPIRY_KEY
+        ],
+        arguments: [
+            sessionId,
+            String(Date.now()),
+            String(SESSION_TIMEOUT)
+        ]
+    })) === 1;
+}
+
+async function removeUserSession(sessionId, username) {
+    const script = `
+        local currentSession = redis.call("HGET", KEYS[2], string.lower(ARGV[2]))
+
+        if currentSession ~= ARGV[1] then
+            return 0
+        end
+
+        redis.call("HDEL", KEYS[1], ARGV[1])
+        redis.call("HDEL", KEYS[2], string.lower(ARGV[2]))
+        redis.call("ZREM", KEYS[3], ARGV[1])
+
+        return 1
+    `;
+
+    const removed = Number(await redis.eval(script, {
+        keys: [
+            USER_SESSIONS_KEY,
+            USERNAMES_KEY,
+            USER_SESSIONS_EXPIRY_KEY
+        ],
+        arguments: [sessionId, username]
+    })) === 1;
+
+    if (removed) {
+        await publishUserUpdate();
+    }
+
+    return removed;
+}
+
+async function cleanupExpiredSessions() {
+    const script = `
+        local expired = redis.call(
+            "ZRANGEBYSCORE",
+            KEYS[3],
+            "-inf",
+            ARGV[1]
+        )
+
+        for _, sessionId in ipairs(expired) do
+            local raw = redis.call("HGET", KEYS[1], sessionId)
+
+            if raw then
+                local user = cjson.decode(raw)
+                local username = string.lower(user.username)
+
+                local currentSession = redis.call(
+                    "HGET",
+                    KEYS[2],
+                    username
+                )
+
+                if currentSession == sessionId then
+                    redis.call("HDEL", KEYS[2], username)
+                end
+
+                redis.call("HDEL", KEYS[1], sessionId)
+            end
+
+            redis.call("ZREM", KEYS[3], sessionId)
+        end
+
+        return #expired
+    `;
+
+    const removed = Number(await redis.eval(script, {
+        keys: [
+            USER_SESSIONS_KEY,
+            USERNAMES_KEY,
+            USER_SESSIONS_EXPIRY_KEY
+        ],
+        arguments: [String(Date.now())]
+    }));
+
+    if (removed > 0) {
+        await publishUserUpdate();
+    }
+
+    return removed;
+}
+
+async function getConnectedUsers() {
+    await cleanupExpiredSessions();
+
+    const sessions = await redis.hGetAll(USER_SESSIONS_KEY);
+
+    return Object.values(sessions).map(session =>
+        JSON.parse(session)
+    );
+}
+
+async function publishUserUpdate() {
+    await redis.publish(USER_EVENTS_CHANNEL, "usersUpdate");
+}
+
+async function subscribeUserUpdates(callback) {
+    if (!subscriber.isOpen) {
+        await subscriber.connect();
+    }
+
+    await subscriber.subscribe(USER_EVENTS_CHANNEL, message => {
+        callback(message);
+    });
+}
+
 async function subscribePollUpdates(callback) {
     if (!subscriber.isOpen) {
         await subscriber.connect();
@@ -247,5 +433,12 @@ module.exports = {
     recordVote,
     publishPollUpdate,
     subscribePollUpdates,
+    registerUserSession,
+    refreshUserSession,
+    removeUserSession,
+    cleanupExpiredSessions,
+    getConnectedUsers,
+    publishUserUpdate,
+    subscribeUserUpdates,
     POLL_EVENTS_CHANNEL
 };

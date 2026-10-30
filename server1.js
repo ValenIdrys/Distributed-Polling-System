@@ -3,6 +3,7 @@ const express = require("express");
 const http = require("http");
 const WebSocket = require("ws");
 const store = require("./redis-store");
+const { randomUUID } = require("crypto");
 
 const app = express();
 const server = http.createServer(app);
@@ -32,15 +33,17 @@ function broadcast(data) {
     }
 }
 
-function getUsers() {
-    return Array.from(users.values());
-}
+async function broadcastUsers() {
+    try {
+        const connectedUsers = await store.getConnectedUsers();
 
-function broadcastUsers() {
-    broadcast({
-        type: "users",
-        users: getUsers()
-    });
+        broadcast({
+            type: "users",
+            users: connectedUsers
+        });
+    } catch (error) {
+        console.error("Failed to retrieve connected users:", error.message);
+    }
 }
 
 function getPollState(poll) {
@@ -100,9 +103,15 @@ wss.on("connection", socket => {
     });
 
     // Send the current state to a newly connected client.
-    sendMessage(socket, {
-        type: "users",
-        users: getUsers()
+    store.getConnectedUsers()
+    .then(connectedUsers => {
+        sendMessage(socket, {
+            type: "users",
+            users: connectedUsers
+        });
+    })
+    .catch(error => {
+        console.error("Failed to load connected users:", error.message);
     });
 
     store.getLatestPoll()
@@ -155,23 +164,45 @@ wss.on("connection", socket => {
     return;
 }
 
-            const duplicate = getUsers().some(
-                user => user.username.toLowerCase() === username.toLowerCase()
-            );
-
-            if (duplicate) {
-                reject(socket, "That username is already connected.");
-                return;
-            }
-
             const user = {
-                username,
-                role,
-                server: "Server 1",
-                port: PORT
-            };
+    username,
+    role,
+    server: "Server 1",
+    port: PORT
+};
 
-            users.set(socket, user);
+    const sessionId = randomUUID();
+
+    try {
+        const result = await store.registerUserSession(
+            sessionId,
+            user
+        );
+
+        if (!result.success) {
+            reject(socket, "That username is already connected.");
+            return;
+        }
+
+        users.set(socket, user);
+        socket.sessionId = sessionId;
+        socket.sessionRefreshInterval = setInterval(async () => {
+    try {
+        const refreshed = await store.refreshUserSession(sessionId);
+
+        if (!refreshed) {
+            console.warn(`Session expired for ${username}`);
+        }
+    } catch (error) {
+        console.error("Failed to refresh session:", error.message);
+    }
+}, 20000);
+
+    } catch (error) {
+        console.error("Failed to register user session:", error.message);
+        reject(socket, "Login failed. Please try again.");
+        return;
+    }
 
             sendMessage(socket, {
                 type: "loginSuccess",
@@ -363,14 +394,35 @@ wss.on("connection", socket => {
         reject(socket, "Unknown request type.");
     });
 
-    socket.on("close", () => {
-        if (users.has(socket)) {
-            const user = users.get(socket);
-            console.log(`${user.username} disconnected`);
-            users.delete(socket);
-            broadcastUsers();
+    socket.on("close", async () => {
+    if (socket.sessionRefreshInterval) {
+        clearInterval(socket.sessionRefreshInterval);
+    }
+
+    if (users.has(socket)) {
+        const user = users.get(socket);
+
+        console.log(`${user.username} disconnected`);
+
+        users.delete(socket);
+
+        if (socket.sessionId) {
+            try {
+                await store.removeUserSession(
+                    socket.sessionId,
+                    user.username
+                );
+            } catch (error) {
+                console.error(
+                    "Failed to remove user session:",
+                    error.message
+                );
+            }
         }
-    });
+
+        broadcastUsers();
+    }
+});
 
     socket.on("error", error => {
         console.error("WebSocket error:", error.message);
@@ -389,6 +441,14 @@ async function startServer() {
                 await broadcastPoll();
             }
         });
+
+        await store.subscribeUserUpdates(async message => {
+    if (message === "usersUpdate") {
+        await broadcastUsers();
+    }
+});
+
+    console.log("Subscribed to Redis user updates.");
 
         console.log("Subscribed to Redis poll updates.");
 
