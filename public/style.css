@@ -1,159 +1,1089 @@
 
+/* ==========================================
+   DISTRIBUTED POLLING SYSTEM
+   BALANCED DARK THEME
+========================================== */
+
+:root {
+    color-scheme: dark;
+
+    --background: #191923;
+    --surface: #22222f;
+    --surface-raised: #292938;
+    --surface-input: #1d1d29;
+
+    --text: #eeeef5;
+    --muted: #a09fb3;
+    --border: #393849;
+
+    --primary: #9b7aea;
+    --primary-hover: #b093f5;
+    --primary-soft: #382d50;
+    --primary-text: #d5c4ff;
+
+    --success: #55c99a;
+    --danger: #ef7185;
+
+    --shadow: 0 8px 25px rgba(0, 0, 0, 0.16);
+}
+
+/* Lecturer theme: blue */
+
+body[data-role="lecturer"] {
+    --primary: #55aee2;
+    --primary-hover: #78c5f0;
+    --primary-soft: #243c50;
+    --primary-text: #b5e3ff;
+}
+
+/* ==========================================
+   GLOBAL
+========================================== */
+
 * {
     box-sizing: border-box;
 }
 
 body {
     margin: 0;
-    font-family: Arial, sans-serif;
-    background: #f3f0ff;
-    color: #292344;
+    min-height: 100vh;
+
+    font-family: Inter, "Segoe UI", Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+
+    background: var(--background);
+    color: var(--text);
+
+    transition: background 0.25s ease;
 }
 
 .container {
-    max-width: 760px;
-    margin: 40px auto;
-    padding: 20px;
+    width: min(1100px, calc(100% - 40px));
+    margin: 0 auto;
+    padding: 38px 0 55px;
+
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+
+    align-items: start;
 }
+
+/* ==========================================
+   HEADER
+========================================== */
 
 header {
-    margin-bottom: 25px;
+    grid-column: 1 / -1;
+    margin-bottom: 3px;
 }
 
-h1 {
-    color: #6842c2;
+header h1 {
+    margin: 0;
+    color: var(--primary);
+
+    font-size: 29px;
+    font-weight: 750;
+    letter-spacing: -0.8px;
 }
 
-h2 {
-    color: #4f348d;
-    margin-top: 0;
+header p {
+    margin: 5px 0 0;
+    color: var(--muted);
+    font-size: 14px;
 }
+
+/* ==========================================
+   CARDS
+========================================== */
 
 .card,
 .status-card {
-    background: white;
-    margin-bottom: 20px;
-    padding: 24px;
-    border-radius: 16px;
-    box-shadow: 0 4px 16px rgba(40, 20, 80, 0.08);
+    min-width: 0;
+    margin: 0;
+    padding: 23px;
+
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 15px;
+
+    box-shadow: var(--shadow);
 }
 
-.status-card {
-    border-left: 5px solid #805ad5;
+.card h2,
+.status-card h2 {
+    margin: 0 0 15px;
+
+    color: var(--text);
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -0.2px;
 }
+
+.card h3 {
+    margin: 24px 0 12px;
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 700;
+}
+
+/* ==========================================
+   CONNECTION STATUS
+========================================== */
+
+.status-card {
+    grid-column: 1 / -1;
+
+    padding: 15px 21px;
+
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--primary);
+}
+
+.status-card h2 {
+    margin-bottom: 5px;
+    color: var(--primary);
+    font-size: 14px;
+}
+
+.status-card p {
+    margin: 3px 0;
+    color: var(--muted);
+    font-size: 13px;
+}
+
+
+
+/* ==========================================
+   LOGIN PAGE — CENTRED AQUA LAYOUT
+========================================== */
+
+body:not([data-role]) .container {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 17px;
+    padding: 35px 20px;
+}
+
+/* Application heading */
+
+body:not([data-role]) header {
+    width: 100%;
+    margin: 0;
+    text-align: center;
+    order: 1;
+}
+
+body:not([data-role]) header h1 {
+    font-size: 27px;
+    letter-spacing: -0.7px;
+}
+
+/* Login card */
+
+body:not([data-role]) #loginSection {
+    order: 2;
+    width: min(440px, 100%);
+    padding: 32px;
+    border: 1px solid #393849;
+    border-top: 3px solid #42C6BE;
+    border-radius: 16px;
+    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.22);
+}
+
+body:not([data-role]) #loginSection h2 {
+    margin-bottom: 20px;
+    font-size: 20px;
+}
+
+/* Connection status becomes compact */
+
+body:not([data-role]) .status-card {
+    order: 3;
+    width: min(440px, 100%);
+    padding: 11px 16px;
+    border: 1px solid #393849;
+    border-left: 3px solid #42C6BE;
+    border-radius: 10px;
+    box-shadow: none;
+}
+
+body:not([data-role]) .status-card h2 {
+    margin-bottom: 3px;
+    font-size: 12px;
+}
+
+body:not([data-role]) .status-card p {
+    font-size: 12px;
+}
+
+/* Smaller screens */
+
+@media (max-width: 600px) {
+    body:not([data-role]) .container {
+        padding: 25px 14px;
+    }
+
+    body:not([data-role]) #loginSection {
+        padding: 24px;
+    }
+}
+
+
+
+/* ==========================================
+   USER DASHBOARD
+========================================== */
+
+#dashboard {
+    grid-column: 1 / -1;
+
+    border-top: 3px solid var(--primary);
+}
+
+#dashboard h2 {
+    margin-bottom: 12px;
+}
+
+#dashboard p {
+    margin: 7px 0;
+    color: var(--muted);
+}
+
+#displayUsername {
+    color: var(--primary);
+}
+
+#displayRole {
+    color: var(--primary-text);
+}
+
+/* ==========================================
+   LECTURER PANEL
+========================================== */
+
+#lecturerPanel {
+    grid-column: 1;
+}
+
+body[data-role="lecturer"] #lecturerPanel {
+    border-top: 3px solid var(--primary);
+}
+
+/* ==========================================
+   POLL PANEL
+========================================== */
+
+#pollPanel {
+    grid-column: 2;
+    grid-row: span 2;
+}
+
+#pollQuestion {
+    font-size: 19px;
+    line-height: 1.4;
+}
+
+#pollStatus {
+    color: var(--muted);
+    font-size: 13px;
+}
+
+/* Student workspace: wider, centred poll */
+
+body[data-role="student"] #pollPanel {
+    grid-column: 1 / -1;
+    grid-row: auto;
+
+    width: min(780px, 100%);
+    justify-self: center;
+}
+
+/* ==========================================
+   CONNECTED USERS
+========================================== */
+
+.container > .card:last-of-type {
+    grid-column: 1;
+}
+
+#userCount {
+    color: var(--primary);
+    font-size: 13px;
+    font-weight: 650;
+}
+
+/* ==========================================
+   FORM ELEMENTS
+========================================== */
 
 label {
     display: block;
     margin: 15px 0 7px;
-    font-weight: bold;
+
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 650;
 }
 
 input,
 select {
+    display: block;
     width: 100%;
-    padding: 12px;
-    border: 1px solid #d6cbea;
-    border-radius: 8px;
-    font-size: 15px;
+    min-height: 43px;
+
+    padding: 10px 13px;
+
+    border: 1px solid var(--border);
+    border-radius: 9px;
+
+    background: var(--surface-input);
+    color: var(--text);
+
+    font-family: inherit;
+    font-size: 13px;
+
+    outline: none;
+
+    transition:
+        border-color 0.2s,
+        box-shadow 0.2s;
 }
+
+input::placeholder {
+    color: #777589;
+}
+
+input:focus,
+select:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 17%, transparent);
+}
+
+select option {
+    background: var(--surface);
+    color: var(--text);
+}
+
+/* ==========================================
+   BUTTONS
+========================================== */
 
 button {
-    margin-top: 16px;
+    display: block;
     width: 100%;
-    padding: 12px;
+    min-height: 42px;
+
+    margin-top: 17px;
+    padding: 10px 16px;
+
     border: none;
-    border-radius: 8px;
-    background: #6842c2;
-    color: white;
-    font-size: 15px;
+    border-radius: 9px;
+
+    background: var(--primary);
+    color: #171622;
+
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 700;
+
     cursor: pointer;
+
+    transition:
+        background 0.2s,
+        transform 0.15s,
+        opacity 0.2s;
 }
 
-button:hover {
-    background: #51319e;
+button:hover:not(:disabled) {
+    background: var(--primary-hover);
+    transform: translateY(-1px);
+}
+
+button:active:not(:disabled) {
+    transform: translateY(0);
 }
 
 button:disabled {
-    background: #aaa0c0;
+    background: #514c60;
+    color: #aaa5b8;
     cursor: not-allowed;
+    opacity: 0.8;
 }
 
 button.secondary {
-    background: #e9e2f8;
-    color: #4f348d;
+    background: var(--primary-soft);
+    color: var(--primary-text);
+}
+
+button.secondary:hover:not(:disabled) {
+    background: var(--surface-raised);
+}
+
+/* ==========================================
+   VOTING OPTIONS
+========================================== */
+
+.vote-option {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    margin: 9px 0;
+    padding: 13px 15px;
+
+    border: 1px solid var(--border);
+    border-radius: 10px;
+
+    background: var(--surface-raised);
+
+    transition:
+        border-color 0.2s,
+        background 0.2s;
+}
+
+.vote-option:has(input:checked) {
+    border-color: var(--primary);
+    background: var(--primary-soft);
+}
+
+.vote-option input {
+    width: 16px;
+    min-height: 16px;
+    height: 16px;
+    margin: 0;
+
+    accent-color: var(--primary);
+}
+
+.vote-option label {
+    flex: 1;
+    margin: 0;
+
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 500;
+
+    cursor: pointer;
+}
+
+/* ==========================================
+   LIVE RESULTS
+========================================== */
+
+.result-row {
+    margin: 16px 0;
+}
+
+.result-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+
+    margin-bottom: 7px;
+
+    color: var(--text);
+    font-size: 13px;
+}
+
+.result-track {
+    height: 10px;
+    overflow: hidden;
+
+    border-radius: 20px;
+    background: var(--surface-raised);
+}
+
+.result-fill {
+    height: 100%;
+    border-radius: 20px;
+
+    background: linear-gradient(
+        90deg,
+        var(--primary),
+        var(--primary-hover)
+    );
+
+    transition: width 0.3s ease;
+}
+
+/* ==========================================
+   USER AND VOTE LISTS
+========================================== */
+
+#userList,
+#voteList {
+    padding-left: 20px;
+    margin: 12px 0 0;
+}
+
+#userList li,
+#voteList li {
+    margin: 9px 0;
+    padding: 9px 11px;
+
+    border: 1px solid var(--border);
+    border-radius: 8px;
+
+    background: var(--surface-raised);
+    color: var(--muted);
+
+    font-size: 12px;
+    overflow-wrap: anywhere;
+}
+
+/* ==========================================
+   MESSAGES
+========================================== */
+
+#loginMessage,
+#voteMessage {
+    color: var(--primary-text);
+    font-size: 13px;
 }
 
 .hidden {
     display: none !important;
 }
 
-.hint {
-    color: #716887;
-    font-size: 13px;
+/* ==========================================
+   RESPONSIVE
+========================================== */
+
+@media (max-width: 700px) {
+    .container {
+        width: min(100% - 28px, 520px);
+        padding-top: 25px;
+
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+
+    header,
+    .status-card,
+    #loginSection,
+    #dashboard,
+    #lecturerPanel,
+    #pollPanel,
+    .container > .card:last-of-type {
+        grid-column: 1;
+        grid-row: auto;
+    }
+
+    header h1 {
+        font-size: 24px;
+    }
+
+    .card,
+    .status-card {
+        padding: 19px;
+    }
+
+    #loginSection {
+        width: 100%;
+    }
+
+    body[data-role="student"] #pollPanel {
+        width: 100%;
+    }
 }
 
-#loginMessage,
-#voteMessage {
-    font-size: 14px;
+
+/* Hide classroom sections before login */
+
+body:not([data-role]) #pollPanel,
+body:not([data-role]) #lecturerPanel,
+body:not([data-role]) #dashboard,
+body:not([data-role]) .container > .card:last-of-type {
+    display: none !important;
 }
 
-#userList,
-#voteList {
-    padding-left: 22px;
+/* Final login aqua colour correction */
+
+body:not([data-role]) header h1 {
+    color: #42C6BE;
 }
 
-#userList li,
-#voteList li {
-    margin: 10px 0;
-    overflow-wrap: anywhere;
+body:not([data-role]) #loginSection h2 {
+    color: #78DED5;
 }
 
-.vote-option {
+body:not([data-role]) #loginButton {
+    background: #42C6BE;
+    color: #172323;
+}
+
+body:not([data-role]) #loginButton:hover {
+    background: #65D9D0;
+}
+
+body:not([data-role]) #loginSection {
+    padding-top: 25px;
+    padding-bottom: 25px;
+}
+
+
+
+/* ==========================================
+   STUDENT DASHBOARD — COMPACT NEON PURPLE
+========================================== */
+
+body[data-role="student"] {
+    --primary: #A477FF;
+    --primary-hover: #BD9AFF;
+    --primary-soft: #38274F;
+    --primary-text: #DCC8FF;
+
+    --student-glow: rgba(164, 119, 255, 0.17);
+}
+
+/* Compact, centred application layout */
+
+body[data-role="student"] .container {
+    width: min(560px, calc(100% - 32px));
+    margin: 0 auto;
+    padding: 32px 0 45px;
+
     display: flex;
-    gap: 10px;
-    align-items: center;
-    padding: 12px;
-    margin: 8px 0;
-    background: #f8f6ff;
-    border-radius: 8px;
+    flex-direction: column;
+    gap: 16px;
 }
 
-.vote-option input {
-    width: auto;
+/* Header */
+
+body[data-role="student"] header {
+    width: 100%;
+    text-align: center;
+    margin-bottom: 4px;
 }
 
-.vote-option label {
-    margin: 0;
-    font-weight: normal;
+body[data-role="student"] header h1 {
+    color: #B99AFF;
+    text-shadow: 0 0 18px rgba(164, 119, 255, 0.35);
 }
 
-.result-row {
-    margin: 14px 0;
+/* Connection card */
+
+body[data-role="student"] .status-card {
+    width: 100%;
+    border: 1px solid #51406C;
+    border-left: 3px solid #A477FF;
+    background: #242130;
+    box-shadow: 0 0 15px rgba(164, 119, 255, 0.08);
 }
 
-.result-label {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 6px;
+/* Welcome card */
+
+body[data-role="student"] #dashboard {
+    width: 100%;
+    padding: 20px;
+    border: 1px solid #51406C;
+    border-top: 3px solid #A477FF;
+
+    box-shadow:
+        0 0 18px rgba(164, 119, 255, 0.10),
+        0 8px 25px rgba(0, 0, 0, 0.16);
 }
 
-.result-track {
-    height: 12px;
-    background: #e9e2f8;
-    border-radius: 10px;
-    overflow: hidden;
+body[data-role="student"] #dashboard h2 {
+    color: #F0E9FF;
+    margin-bottom: 8px;
 }
 
-.result-fill {
-    height: 100%;
-    background: #805ad5;
-    transition: width 0.2s;
+body[data-role="student"] #dashboard p {
+    display: block;
+    margin: 5px 0;
+}
+
+/* Logout button */
+
+body[data-role="student"] #logoutButton {
+    width: 100%;
+    margin-top: 13px;
+}
+
+/* Poll card */
+
+body[data-role="student"] #pollPanel {
+    width: 100%;
+    max-width: none;
+    padding: 22px;
+
+    border: 1px solid #51406C;
+    border-top: 3px solid #A477FF;
+
+    box-shadow:
+        0 0 22px rgba(164, 119, 255, 0.12),
+        0 8px 25px rgba(0, 0, 0, 0.16);
+}
+
+body[data-role="student"] #pollQuestion {
+    color: #DCC8FF;
+    font-size: 20px;
+}
+
+body[data-role="student"] #pollStatus {
+    color: #B7A7D0;
+}
+
+/* Voting options */
+
+body[data-role="student"] .vote-option {
+    background: #302B3E;
+    border-color: #51445F;
+}
+
+body[data-role="student"] .vote-option:hover {
+    border-color: #A477FF;
+    box-shadow: 0 0 12px rgba(164, 119, 255, 0.12);
+}
+
+body[data-role="student"] .vote-option:has(input:checked) {
+    background: #392B50;
+    border-color: #A477FF;
+    box-shadow: 0 0 12px rgba(164, 119, 255, 0.15);
+}
+
+/* Voting button */
+
+body[data-role="student"] #votingOptions button {
+    background: linear-gradient(100deg, #8555E8, #A477FF);
+    color: white;
+    box-shadow: 0 0 16px rgba(164, 119, 255, 0.20);
+}
+
+body[data-role="student"] #votingOptions button:hover:not(:disabled) {
+    background: linear-gradient(100deg, #966AF0, #B99AFF);
+    box-shadow: 0 0 22px rgba(164, 119, 255, 0.32);
+}
+
+/* Results */
+
+body[data-role="student"] .result-track {
+    background: #393245;
+}
+
+body[data-role="student"] .result-fill {
+    background: linear-gradient(90deg, #8555E8, #C09AFF);
+    box-shadow: 0 0 10px rgba(164, 119, 255, 0.35);
+}
+
+/* Submitted votes */
+
+body[data-role="student"] #voteList li {
+    background: #302B3E;
+    border-color: #51445F;
+}
+
+/* Connected users */
+
+body[data-role="student"] .container > .card:last-of-type {
+    width: 100%;
+    padding: 18px 22px;
+
+    border: 1px solid #51406C;
+    box-shadow: 0 0 15px rgba(164, 119, 255, 0.08);
+}
+
+body[data-role="student"] .container > .card:last-of-type h2 {
+    margin-bottom: 8px;
 }
 
 @media (max-width: 600px) {
-    .container {
-        margin: 15px auto;
-        padding: 14px;
+    body[data-role="student"] .container {
+        width: calc(100% - 24px);
+        padding-top: 20px;
     }
+}
+
+
+/* Full-width polling workspace */
+
+body[data-role="student"] #pollPanel {
+    justify-self: stretch;
+    max-width: none;
+}
+
+/* Compact connected users */
+
+body[data-role="student"] .container > .card:last-of-type {
+    padding: 18px 22px;
+}
+
+body[data-role="student"] .container > .card:last-of-type h2 {
+    margin-bottom: 8px;
+}
+
+@media (max-width: 600px) {
+    body[data-role="student"] .container {
+        width: calc(100% - 24px);
+    }
+}
+
+
+/* ==========================================
+   STUDENT DASHBOARD — COMPACT SPACING
+========================================== */
+
+body[data-role="student"] .container {
+    gap: 11px;
+    padding-top: 20px;
+    padding-bottom: 25px;
+}
+
+body[data-role="student"] header {
+    margin-bottom: 0;
+}
+
+body[data-role="student"] header h1 {
+    font-size: 24px;
+}
+
+body[data-role="student"] .status-card {
+    padding: 9px 16px;
+}
+
+body[data-role="student"] #dashboard {
+    padding: 13px 18px;
+}
+
+body[data-role="student"] #dashboard h2 {
+    margin-bottom: 5px;
+    font-size: 16px;
+}
+
+body[data-role="student"] #dashboard p {
+    margin: 2px 0;
+    font-size: 12px;
+}
+
+body[data-role="student"] #logoutButton {
+    min-height: 34px;
+    margin-top: 8px;
+    padding: 7px 12px;
+}
+
+body[data-role="student"] #pollPanel {
+    padding: 17px 19px;
+}
+
+body[data-role="student"] #pollPanel h3 {
+    margin: 17px 0 9px;
+}
+
+body[data-role="student"] .vote-option {
+    padding: 9px 12px;
+    margin: 6px 0;
+}
+
+body[data-role="student"] #votingOptions button {
+    min-height: 37px;
+    margin-top: 11px;
+    padding: 8px 12px;
+}
+
+body[data-role="student"] .result-row {
+    margin: 10px 0;
+}
+
+body[data-role="student"] .result-track {
+    height: 8px;
+}
+
+body[data-role="student"] #results > p {
+    margin: 10px 0;
+}
+
+body[data-role="student"] #voteList,
+body[data-role="student"] #userList {
+    margin-top: 7px;
+}
+
+body[data-role="student"] #voteList li,
+body[data-role="student"] #userList li {
+    margin: 5px 0;
+    padding: 7px 9px;
+}
+
+body[data-role="student"] .container > .card:last-of-type {
+    padding: 13px 18px;
+}
+
+body[data-role="student"] .container > .card:last-of-type h2 {
+    margin-bottom: 5px;
+}
+
+
+/* ==========================================
+   STUDENT DASHBOARD — TWO COLUMN LAYOUT
+========================================== */
+
+body[data-role="student"] .container {
+    width: min(1000px, calc(100% - 40px));
+    margin: 0 auto;
+    padding: 25px 0 40px;
+
+    display: grid;
+    grid-template-columns: minmax(0, 1.45fr) minmax(240px, 0.75fr);
+    gap: 15px;
+    align-items: start;
+}
+
+/* Header and account sections span both columns */
+
+body[data-role="student"] header,
+body[data-role="student"] .status-card,
+body[data-role="student"] #dashboard {
+    grid-column: 1 / -1;
+    width: 100%;
+}
+
+/* Poll occupies the main column */
+
+body[data-role="student"] #pollPanel {
+    grid-column: 1;
+    grid-row: auto;
+    width: 100%;
+    max-width: none;
+    padding: 18px;
+}
+
+/* Connected users becomes the sidebar */
+
+body[data-role="student"] .container > .card:last-of-type {
+    grid-column: 2;
+    grid-row: auto;
+    width: 100%;
+    padding: 18px;
+    align-self: start;
+
+    border: 1px solid #51406C;
+    box-shadow: 0 0 18px rgba(164, 119, 255, 0.10);
+}
+
+/* Make the sidebar heading more compact */
+
+body[data-role="student"] .container > .card:last-of-type h2 {
+    margin-bottom: 8px;
+}
+
+/* Keep the purple glow on the main poll */
+
+body[data-role="student"] #pollPanel {
+    border: 1px solid #51406C;
+    border-top: 3px solid #A477FF;
+
+    box-shadow:
+        0 0 22px rgba(164, 119, 255, 0.12),
+        0 8px 25px rgba(0, 0, 0, 0.16);
+}
+
+/* Mobile: return to a single column */
+
+@media (max-width: 700px) {
+    body[data-role="student"] .container {
+        width: calc(100% - 24px);
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    body[data-role="student"] header,
+    body[data-role="student"] .status-card,
+    body[data-role="student"] #dashboard,
+    body[data-role="student"] #pollPanel,
+    body[data-role="student"] .container > .card:last-of-type {
+        grid-column: 1;
+        grid-row: auto;
+    }
+}
+
+
+/* ==========================================
+   LECTURER DASHBOARD — COMPACT REFINEMENT
+========================================== */
+
+/* Reduce overall spacing */
+
+body[data-role="lecturer"] .container {
+    padding-top: 20px;
+    padding-bottom: 25px;
+    gap: 13px;
+}
+
+/* Compact connection card */
+
+body[data-role="lecturer"] .status-card {
+    padding: 10px 18px;
+}
+
+body[data-role="lecturer"] .status-card p {
+    margin: 2px 0;
+}
+
+/* Compact welcome card */
+
+body[data-role="lecturer"] #dashboard {
+    padding: 14px 20px;
+}
+
+body[data-role="lecturer"] #dashboard h2 {
+    margin-bottom: 7px;
+}
+
+body[data-role="lecturer"] #dashboard p {
+    margin: 4px 0;
+}
+
+body[data-role="lecturer"] #logoutButton {
+    min-height: 36px;
+    margin-top: 9px;
+}
+
+/* Compact poll creation form */
+
+body[data-role="lecturer"] #lecturerPanel {
+    padding: 19px;
+}
+
+body[data-role="lecturer"] #lecturerPanel label {
+    margin: 10px 0 5px;
+}
+
+body[data-role="lecturer"] #lecturerPanel input {
+    min-height: 39px;
+    padding: 8px 12px;
+}
+
+body[data-role="lecturer"] #lecturerPanel button {
+    min-height: 38px;
+    margin-top: 12px;
+}
+
+/* Compact live results */
+
+body[data-role="lecturer"] #pollPanel {
+    padding: 19px;
+}
+
+body[data-role="lecturer"] #pollPanel h3 {
+    margin: 17px 0 9px;
+}
+
+body[data-role="lecturer"] .result-row {
+    margin: 11px 0;
+}
+
+/* Connected users */
+
+body[data-role="lecturer"] .container > .card:last-of-type {
+    padding: 16px 19px;
+}
+
+body[data-role="lecturer"] .container > .card:last-of-type h2 {
+    margin-bottom: 7px;
 }

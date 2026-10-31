@@ -141,53 +141,53 @@ wss.on("connection", socket => {
         }
 
         if (data.type === "resumeSession") {
-    const sessionId = data.sessionId;
+            const sessionId = data.sessionId;
 
-    if (typeof sessionId !== "string" || !sessionId) {
-        reject(socket, "Invalid session token.");
-        return;
-    }
+            if (typeof sessionId !== "string" || !sessionId) {
+                reject(socket, "Invalid session token.");
+                return;
+            }
 
-    try {
-        const result = await store.resumeUserSession(
-            sessionId,
-            SERVER_NAME,
-            PORT
-        );
+            try {
+                const result = await store.resumeUserSession(
+                    sessionId,
+                    "Server 1",
+                    PORT
+                );
 
-        if (!result.success) {
-            reject(socket, "Session expired. Please log in again.");
+                if (!result.success) {
+                    reject(socket, "Session expired. Please log in again.");
+                    return;
+                }
+
+                const user = result.user;
+
+                users.set(socket, user);
+                socket.sessionId = sessionId;
+
+                socket.sessionRefreshInterval = setInterval(async () => {
+                    try {
+                        await store.refreshUserSession(sessionId);
+                    } catch (error) {
+                        console.error("Failed to refresh session:", error.message);
+                    }
+                }, 20000);
+
+                sendMessage(socket, {
+                    type: "loginSuccess",
+                    user,
+                    sessionId
+                });
+
+                console.log(`${user.username} resumed on Server 1`);
+                await broadcastUsers();
+            } catch (error) {
+                console.error("Session recovery failed:", error.message);
+                reject(socket, "Could not restore your session.");
+            }
+
             return;
         }
-
-        const user = result.user;
-
-        users.set(socket, user);
-        socket.sessionId = sessionId;
-
-        socket.sessionRefreshInterval = setInterval(async () => {
-            try {
-                await store.refreshUserSession(sessionId);
-            } catch (error) {
-                console.error("Failed to refresh session:", error.message);
-            }
-        }, 20000);
-
-        sendMessage(socket, {
-            type: "loginSuccess",
-            user,
-            sessionId
-        });
-
-        console.log(`${user.username} resumed on ${SERVER_NAME}`);
-        await broadcastUsers();
-    } catch (error) {
-        console.error("Session recovery failed:", error.message);
-        reject(socket, "Could not restore your session.");
-    }
-
-    return;
-}
 
 
         if (data.type === "login") {
@@ -549,4 +549,3 @@ async function startServer() {
 }
 
 startServer();
-

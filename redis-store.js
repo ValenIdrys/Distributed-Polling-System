@@ -34,7 +34,16 @@ async function connectRedis() {
 
 async function getLatestPoll() {
     const value = await redis.get(POLL_LATEST_KEY);
-    return value ? JSON.parse(value) : null;
+
+    if (!value) return null;
+
+    const poll = JSON.parse(value);
+
+    if (!Array.isArray(poll.votes)) {
+        poll.votes = Object.values(poll.votes || {});
+    }
+
+    return poll;
 }
 
 async function getActivePoll() {

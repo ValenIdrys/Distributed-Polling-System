@@ -364,6 +364,7 @@ function handleMessage(event) {
 
     if (data.type === "loginSuccess") {
         currentUser = data.user;
+        document.body.dataset.role = currentUser.role;
         sessionId = data.sessionId || sessionId;
 
         if (sessionId) {
@@ -391,10 +392,22 @@ function handleMessage(event) {
     }
 
     if (data.type === "error") {
-    loginMessage.textContent = data.message;
-    voteMessage.textContent = data.message;
+        if (currentUser) {
+            voteMessage.textContent = data.message;
+        }
+        else {
+            loginMessage.textContent = data.message;
+        }
 
-        if (data.message === "Session expired. Please log in again.") {
+        const recoveryErrors = [
+            "Session expired. Please log in again.",
+            "Invalid session token.",
+            "Could not restore your session."
+        ];
+
+        if (recoveryErrors.includes(data.message)) {
+            document.body.removeAttribute("data-role");
+
             sessionId = null;
             currentUser = null;
 
@@ -403,9 +416,11 @@ function handleMessage(event) {
             dashboard.classList.add("hidden");
             loginSection.classList.remove("hidden");
 
-            connectionStatus.textContent = "Connected — please log in again.";
+            connectionStatus.textContent =
+                "Connected — please log in again.";
         }
     }
+
 
     if (data.type === "users") {
         $("userCount").textContent =
