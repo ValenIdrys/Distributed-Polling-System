@@ -140,6 +140,56 @@ wss.on("connection", socket => {
             return;
         }
 
+        if (data.type === "resumeSession") {
+    const sessionId = data.sessionId;
+
+    if (typeof sessionId !== "string" || !sessionId) {
+        reject(socket, "Invalid session token.");
+        return;
+    }
+
+    try {
+        const result = await store.resumeUserSession(
+            sessionId,
+            SERVER_NAME,
+            PORT
+        );
+
+        if (!result.success) {
+            reject(socket, "Session expired. Please log in again.");
+            return;
+        }
+
+        const user = result.user;
+
+        users.set(socket, user);
+        socket.sessionId = sessionId;
+
+        socket.sessionRefreshInterval = setInterval(async () => {
+            try {
+                await store.refreshUserSession(sessionId);
+            } catch (error) {
+                console.error("Failed to refresh session:", error.message);
+            }
+        }, 20000);
+
+        sendMessage(socket, {
+            type: "loginSuccess",
+            user,
+            sessionId
+        });
+
+        console.log(`${user.username} resumed on ${SERVER_NAME}`);
+        await broadcastUsers();
+    } catch (error) {
+        console.error("Session recovery failed:", error.message);
+        reject(socket, "Could not restore your session.");
+    }
+
+    return;
+}
+
+
         if (data.type === "login") {
             const username =
                 typeof data.username === "string"
@@ -206,13 +256,43 @@ wss.on("connection", socket => {
 
             sendMessage(socket, {
                 type: "loginSuccess",
-                user
+                user,
+                sessionId
             });
 
             console.log(`${username} logged in as ${role}`);
             broadcastUsers();
             return;
         }
+        
+        if (data.type === "logout") {
+    const user = users.get(socket);
+
+    if (user && socket.sessionId) {
+        try {
+            await store.removeUserSession(
+                socket.sessionId,
+                user.username
+            );
+
+            console.log(`${user.username} logged out intentionally.`);
+        } catch (error) {
+            console.error("Logout failed:", error.message);
+        }
+
+        if (socket.sessionRefreshInterval) {
+            clearInterval(socket.sessionRefreshInterval);
+        }
+
+        users.delete(socket);
+        socket.intentionalLogout = true;
+
+        await broadcastUsers();
+    }
+
+    socket.close();
+    return;
+}
 
         const user = users.get(socket);
 
@@ -399,29 +479,29 @@ wss.on("connection", socket => {
         clearInterval(socket.sessionRefreshInterval);
     }
 
-    if (users.has(socket)) {
-        const user = users.get(socket);
+   if (users.has(socket)) {
+    const user = users.get(socket);
 
-        console.log(`${user.username} disconnected`);
+    console.log(`${user.username} disconnected`);
 
-        users.delete(socket);
+    users.delete(socket);
 
-        if (socket.sessionId) {
-            try {
-                await store.removeUserSession(
-                    socket.sessionId,
-                    user.username
-                );
-            } catch (error) {
-                console.error(
-                    "Failed to remove user session:",
-                    error.message
-                );
-            }
+    if (socket.sessionId) {
+        try {
+            await store.markUserDisconnected(
+                socket.sessionId,
+                user.username
+            );
+        } catch (error) {
+            console.error(
+                "Failed to mark user disconnected:",
+                error.message
+            );
         }
-
-        broadcastUsers();
     }
+
+    await broadcastUsers();
+}
 });
 
     socket.on("error", error => {

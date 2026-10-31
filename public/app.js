@@ -40,10 +40,23 @@ let currentPoll = null;
 let hasVoted = false;
 
 const protocol = location.protocol === "https:" ? "wss:" : "ws:";
-const socket = new WebSocket(`${protocol}//${location.host}`);
+
+const servers = [
+    { host: location.hostname, port: 3000 },
+    { host: location.hostname, port: 3001 }
+];
+
+let socket = null;
+let currentServerIndex = location.port === "3001" ? 1 : 0;
+let reconnectTimer = null;
+let reconnectAttempts = 0;
+let reconnecting = false;
+let pendingLogin = null;
+let sessionId = sessionStorage.getItem("pollingSessionId");
+let manuallyDisconnected = false;
 
 function send(data) {
-    if (socket.readyState !== WebSocket.OPEN) {
+    if (!socket || socket.readyState !== WebSocket.OPEN) {
         voteMessage.textContent = "Server connection is unavailable.";
         return;
     }
@@ -51,17 +64,65 @@ function send(data) {
     socket.send(JSON.stringify(data));
 }
 
-socket.addEventListener("open", () => {
+function connectToServer(serverIndex) {
+    if (manuallyDisconnected) return;
+
+    currentServerIndex = serverIndex;
+
+    const server = servers[serverIndex];
+
+    connectionStatus.textContent =
+        `Connecting to Server ${serverIndex + 1}...`;
+
+    socket = new WebSocket(
+        `${protocol}//${server.host}:${server.port}`
+    );
+
+    socket.addEventListener("open", () => {
+    reconnectAttempts = 0;
+
     connectionStatus.textContent = "WebSocket connected";
+
+    if (sessionId) {
+        socket.send(JSON.stringify({
+            type: "resumeSession",
+            sessionId
+        }));
+    } else if (pendingLogin) {
+        socket.send(JSON.stringify(pendingLogin));
+    }
 });
 
-socket.addEventListener("close", () => {
-    connectionStatus.textContent = "Disconnected from server";
-});
+    socket.addEventListener("message", handleMessage);
 
-socket.addEventListener("error", () => {
-    connectionStatus.textContent = "Connection error";
-});
+    socket.addEventListener("close", () => {
+        if (manuallyDisconnected) return;
+
+        connectionStatus.textContent = "Connection lost. Reconnecting...";
+
+        scheduleReconnect();
+    });
+
+    socket.addEventListener("error", () => {
+        connectionStatus.textContent = "Connection error";
+    });
+}
+
+function scheduleReconnect() {
+    if (reconnecting || manuallyDisconnected) return;
+
+    reconnecting = true;
+
+    reconnectTimer = setTimeout(() => {
+        reconnecting = false;
+
+        const nextServerIndex = (currentServerIndex + 1) % servers.length;
+
+        connectToServer(nextServerIndex);
+    }, Math.min(2000 * (reconnectAttempts + 1), 10000));
+
+    reconnectAttempts++;
+}
 
 loginForm.addEventListener("submit", event => {
     event.preventDefault();
@@ -79,22 +140,38 @@ loginForm.addEventListener("submit", event => {
         return;
     }
 
-    send({
+    pendingLogin = {
         type: "login",
         username,
         role,
         password: role === "lecturer" ? passwordInput.value : ""
-    });
+    };
+
+    send(pendingLogin);
 
     loginMessage.textContent = role === "lecturer"
         ? "Checking lecturer credentials..."
         : "Joining the polling system...";
 });
 
-$("logoutButton").addEventListener("click", () => {
-    socket.close();
-    location.reload();
-});
+    $("logoutButton").addEventListener("click", () => {
+        manuallyDisconnected = true;
+
+        if (reconnectTimer) {
+            clearTimeout(reconnectTimer);
+        }
+
+        pendingLogin = null;
+        sessionId = null;
+        sessionStorage.removeItem("pollingSessionId");
+
+        send({ type: "logout" });
+
+        setTimeout(() => {
+            socket?.close();
+            location.reload();
+        }, 200);
+    });
 
 pollForm.addEventListener("submit", event => {
     event.preventDefault();
@@ -267,7 +344,7 @@ function renderResults(poll) {
     }
 }
 
-socket.addEventListener("message", event => {
+function handleMessage(event) {
     let data;
 
     try {
@@ -277,11 +354,24 @@ socket.addEventListener("message", event => {
     }
 
     if (data.type === "welcome") {
-        serverInfo.textContent = `${data.server} — Port ${data.port}`;
+    serverInfo.textContent = `${data.server} — Port ${data.port}`;
+
+    if (reconnecting || currentUser) {
+        connectionStatus.textContent =
+            `Reconnected to ${data.server}`;
     }
+}
 
     if (data.type === "loginSuccess") {
         currentUser = data.user;
+        sessionId = data.sessionId || sessionId;
+
+        if (sessionId) {
+            sessionStorage.setItem("pollingSessionId", sessionId);
+        }
+
+        pendingLogin = null;
+        reconnecting = false;
 
         loginSection.classList.add("hidden");
         dashboard.classList.remove("hidden");
@@ -301,8 +391,20 @@ socket.addEventListener("message", event => {
     }
 
     if (data.type === "error") {
-        loginMessage.textContent = data.message;
-        voteMessage.textContent = data.message;
+    loginMessage.textContent = data.message;
+    voteMessage.textContent = data.message;
+
+        if (data.message === "Session expired. Please log in again.") {
+            sessionId = null;
+            currentUser = null;
+
+            sessionStorage.removeItem("pollingSessionId");
+
+            dashboard.classList.add("hidden");
+            loginSection.classList.remove("hidden");
+
+            connectionStatus.textContent = "Connected — please log in again.";
+        }
     }
 
     if (data.type === "users") {
@@ -333,4 +435,6 @@ socket.addEventListener("message", event => {
     if (data.type === "voteConfirmation") {
         voteMessage.textContent = data.message;
     }
-});
+}
+
+connectToServer(currentServerIndex);

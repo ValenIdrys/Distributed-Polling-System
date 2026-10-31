@@ -326,6 +326,7 @@ async function resumeUserSession(sessionId, server, port) {
 
         user.server = ARGV[3]
         user.port = tonumber(ARGV[4])
+        user.connected = true
 
         redis.call("HSET", KEYS[1], ARGV[1], cjson.encode(user))
         redis.call("ZADD", KEYS[3], ARGV[2] + ARGV[5], ARGV[1])
@@ -361,6 +362,51 @@ async function resumeUserSession(sessionId, server, port) {
         success: true,
         user: JSON.parse(result[1])
     };
+}
+
+async function markUserDisconnected(sessionId, username) {
+    const script = `
+        local raw = redis.call("HGET", KEYS[1], ARGV[1])
+
+        if not raw then
+            return 0
+        end
+
+        local currentSession = redis.call(
+            "HGET",
+            KEYS[2],
+            string.lower(ARGV[2])
+        )
+
+        if currentSession ~= ARGV[1] then
+            return 0
+        end
+
+        local user = cjson.decode(raw)
+        user.connected = false
+
+        redis.call("HSET", KEYS[1], ARGV[1], cjson.encode(user))
+
+        return 1
+    `;
+
+    const result = await redis.eval(script, {
+        keys: [
+            USER_SESSIONS_KEY,
+            USERNAMES_KEY
+        ],
+        arguments: [
+            sessionId,
+            username
+        ]
+    });
+
+    if (Number(result) === 1) {
+        await publishUserUpdate();
+        return true;
+    }
+
+    return false;
 }
 
 async function removeUserSession(sessionId, username) {
@@ -450,9 +496,9 @@ async function getConnectedUsers() {
 
     const sessions = await redis.hGetAll(USER_SESSIONS_KEY);
 
-    return Object.values(sessions).map(session =>
-        JSON.parse(session)
-    );
+    return Object.values(sessions)
+        .map(session => JSON.parse(session))
+        .filter(user => user.connected !== false);
 }
 
 async function publishUserUpdate() {
@@ -498,6 +544,7 @@ module.exports = {
     registerUserSession,
     refreshUserSession,
     resumeUserSession,
+    markUserDisconnected,
     removeUserSession,
     cleanupExpiredSessions,
     getConnectedUsers,

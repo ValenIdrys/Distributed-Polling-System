@@ -59,30 +59,78 @@ async function runTest() {
             throw new Error("Could not retrieve registered user.");
         }
 
-                console.log("\n5. Testing session recovery on another server...");
+               console.log("\n5. Testing unexpected disconnection...");
 
-        const resumed = await store.resumeUserSession(
-            sessionId,
-            "Server 2",
-            3001
-        );
+const disconnected = await store.markUserDisconnected(
+    sessionId,
+    user.username
+);
 
-        console.log("Session resumed:", resumed);
+console.log("User marked disconnected:", disconnected);
 
-        if (!resumed.success) {
-            throw new Error("Session recovery failed.");
-        }
+if (!disconnected) {
+    throw new Error("Failed to mark user disconnected.");
+}
 
-        if (
-            resumed.user.server !== "Server 2" ||
-            resumed.user.port !== 3001
-        ) {
-            throw new Error("Session server information was not updated.");
-        }
+const connectedUsers = await store.getConnectedUsers();
 
-        console.log("Updated user:", resumed.user);
+const userStillConnected = connectedUsers.some(
+    u => u.username === user.username
+);
 
-                console.log("\n6. Testing session removal...");
+console.log("Disconnected user still appears online:", userStillConnected);
+
+if (userStillConnected) {
+    throw new Error("Disconnected user still appears online.");
+}
+
+// Confirm the session still exists for recovery.
+const savedSession = await store.redis.hGet(
+    "users:sessions",
+    sessionId
+);
+
+if (!savedSession) {
+    throw new Error("Session was deleted instead of retained.");
+}
+
+console.log("\n6. Testing session recovery on another server...");
+
+const resumed = await store.resumeUserSession(
+    sessionId,
+    "Server 2",
+    3001
+);
+
+console.log("Session resumed:", resumed);
+
+if (!resumed.success) {
+    throw new Error("Session recovery failed.");
+}
+
+if (
+    resumed.user.server !== "Server 2" ||
+    resumed.user.port !== 3001 ||
+    resumed.user.connected !== true
+) {
+    throw new Error("Session recovery information was not updated.");
+}
+
+const recoveredUsers = await store.getConnectedUsers();
+
+const userAppearsOnline = recoveredUsers.some(
+    u => u.username === user.username
+);
+
+console.log("Recovered user appears online:", userAppearsOnline);
+
+if (!userAppearsOnline) {
+    throw new Error("Recovered user did not reappear online.");
+}
+
+console.log("Updated user:", resumed.user);
+
+                console.log("\n7. Testing session removal...");
 
         const removed = await store.removeUserSession(
             sessionId,
@@ -95,7 +143,7 @@ async function runTest() {
             throw new Error("Session removal failed.");
         }
 
-        console.log("\n7. Testing expired-session cleanup...");
+        console.log("\n8. Testing expired-session cleanup...");
 
         const expirySessionId = "test-session-expiry-001";
 
