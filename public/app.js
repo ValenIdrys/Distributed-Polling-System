@@ -81,17 +81,17 @@ function connectToServer(serverIndex) {
     socket.addEventListener("open", () => {
     reconnectAttempts = 0;
 
-    connectionStatus.textContent = "WebSocket connected";
+        connectionStatus.textContent = "WebSocket connected";
 
-    if (sessionId) {
-        socket.send(JSON.stringify({
-            type: "resumeSession",
-            sessionId
-        }));
-    } else if (pendingLogin) {
-        socket.send(JSON.stringify(pendingLogin));
-    }
-});
+        if (sessionId) {
+            socket.send(JSON.stringify({
+                type: "resumeSession",
+                sessionId
+            }));
+        } else if (pendingLogin) {
+            socket.send(JSON.stringify(pendingLogin));
+        }
+    });
 
     socket.addEventListener("message", handleMessage);
 
@@ -169,7 +169,19 @@ loginForm.addEventListener("submit", event => {
 
         setTimeout(() => {
             socket?.close();
-            location.reload();
+
+            currentUser = null;
+            sessionId = null;
+            pendingLogin = null;
+
+            document.body.removeAttribute("data-role");
+
+            dashboard.classList.add("hidden");
+            loginSection.classList.remove("hidden");
+
+            loginMessage.textContent = "";
+            voteMessage.textContent = "";
+            connectionStatus.textContent = "Logged out.";
         }, 200);
     });
 
@@ -345,22 +357,22 @@ function renderResults(poll) {
 }
 
 function handleMessage(event) {
-    let data;
+        let data;
 
-    try {
-        data = JSON.parse(event.data);
-    } catch {
-        return;
+        try {
+            data = JSON.parse(event.data);
+        } catch {
+            return;
+        }
+
+        if (data.type === "welcome") {
+        serverInfo.textContent = `${data.server} — Port ${data.port}`;
+
+        if (reconnecting || currentUser) {
+            connectionStatus.textContent =
+                `Reconnected to ${data.server}`;
+        }
     }
-
-    if (data.type === "welcome") {
-    serverInfo.textContent = `${data.server} — Port ${data.port}`;
-
-    if (reconnecting || currentUser) {
-        connectionStatus.textContent =
-            `Reconnected to ${data.server}`;
-    }
-}
 
     if (data.type === "loginSuccess") {
         currentUser = data.user;
