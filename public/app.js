@@ -140,14 +140,21 @@ loginForm.addEventListener("submit", event => {
         return;
     }
 
-    pendingLogin = {
-        type: "login",
-        username,
-        role,
-        password: role === "lecturer" ? passwordInput.value : ""
-    };
+    manuallyDisconnected = false;
 
-    send(pendingLogin);
+        pendingLogin = {
+            type: "login",
+            username,
+            role,
+            password: role === "lecturer" ? passwordInput.value : ""
+        };
+
+        if (!socket || socket.readyState !== WebSocket.OPEN) {
+            reconnectAttempts = 0;
+            connectToServer(currentServerIndex);
+        } else {
+            send(pendingLogin);
+        }
 
     loginMessage.textContent = role === "lecturer"
         ? "Checking lecturer credentials..."
